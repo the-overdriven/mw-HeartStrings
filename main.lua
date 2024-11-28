@@ -154,6 +154,7 @@ local ST = {
 ["AB_In_MVCave"] = "Dunge",
 }
 
+local lastMusic
 local lastMusicPeace
 
 
@@ -179,7 +180,7 @@ else
 	timer.delayOneFrame(function()	-- Без таймера боевая музыка всегда будет прерывать мирную
 		local file
 		if lastMusicPeace and not (lastMusicPeace == lastMusic) then
-			-- don't repeat the same track
+			-- resume last peaceful music if it exists but don't repeat the previous track
     	file = lastMusicPeace
 		else
     	file = RandomMP3(("data files\\music\\%s\\"):format(D.MusL))
@@ -190,11 +191,10 @@ else
 		-- lastMusicPeace = nil -- it doesn't make a difference?
 
 		if string.find(file, "/") or string.find(file, "\\") then
-			-- trim Data Files/music/ from file since tes3.streamMusic prefixes that automatically
-
-				tes3.streamMusic{path = string.gsub(file, "^" .. string.gsub("Data Files/music/", "(%a)", function(c) return "[" .. c:lower() .. c:upper() .. "]" end), ""), situation = 2, crossfade = 1}
+			-- trim "Data Files/music/" from file since tes3.streamMusic prefixes that automatically
+			tes3.streamMusic{path = string.gsub(file, "^" .. string.gsub("Data Files/music/", "(%a)", function(c) return "[" .. c:lower() .. c:upper() .. "]" end), ""), situation = 2, crossfade = 1}
 		else
-				tes3.streamMusic{path = ("%s\\%s"):format(D.MusL, file), situation = 2, crossfade = 1}
+			tes3.streamMusic{path = ("%s\\%s"):format(D.MusL, file), situation = 2, crossfade = 1}
 		end
 
 		if cf.msg then tes3.messageBox("Select - %s - %s", D.MusL, file) end
