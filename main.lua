@@ -154,6 +154,8 @@ local ST = {
 ["AB_In_MVCave"] = "Dunge",
 }
 
+local lastMusicPeace
+
 
 local function combatStarted(e) if e.target == mp and not COM and not NOC[D.MusL] then		local m = e.actor	local ob = m.object		local int = p.cell.isInterior		local Start 	--local r = m.reference
 	if m.actorType == 1 or ob.biped or ob.usesEquipment then					-- ob.type ~= 0
@@ -167,7 +169,7 @@ local function combatStarted(e) if e.target == mp and not COM and not NOC[D.MusL
 	end
 end end		event.register("combatStarted", combatStarted)
 
-
+-- order of execution: 1.musicSelectTrack. 2.musicChangeTrack.
 local function musicSelectTrack(e)		--tes3.messageBox("Sit = %s   D = %s    com = %s", e.situation, D.MusL, COM)	
 if COM and e.situation == 1 and not NOC[D.MusL] then
 	local file = RandomMP3("data files\\music\\Battle")
@@ -175,8 +177,26 @@ if COM and e.situation == 1 and not NOC[D.MusL] then
 	if cf.msg then tes3.messageBox("Select - Battle - %s", file) end
 else
 	timer.delayOneFrame(function()	-- Без таймера боевая музыка всегда будет прерывать мирную
-		local file = RandomMP3(("data files\\music\\%s\\"):format(D.MusL))
-		tes3.streamMusic{path = ("%s\\%s"):format(D.MusL, file), situation = 2, crossfade = 1}
+		local file
+		if lastMusicPeace and not (lastMusicPeace == lastMusic) then
+			-- don't repeat the same track
+    	file = lastMusicPeace
+		else
+    	file = RandomMP3(("data files\\music\\%s\\"):format(D.MusL))
+		end
+
+		-- reset last music if it's not a change due to battle
+		-- so that natural music change wont be looped forever
+		-- lastMusicPeace = nil -- it doesn't make a difference?
+
+		if string.find(file, "/") or string.find(file, "\\") then
+			-- trim Data Files/music/ from file since tes3.streamMusic prefixes that automatically
+
+				tes3.streamMusic{path = string.gsub(file, "^" .. string.gsub("Data Files/music/", "(%a)", function(c) return "[" .. c:lower() .. c:upper() .. "]" end), ""), situation = 2, crossfade = 1}
+		else
+				tes3.streamMusic{path = ("%s\\%s"):format(D.MusL, file), situation = 2, crossfade = 1}
+		end
+
 		if cf.msg then tes3.messageBox("Select - %s - %s", D.MusL, file) end
 	end, timer.real)
 	COM = false		e.music = nil	return false
@@ -185,8 +205,15 @@ end end		event.register("musicSelectTrack", musicSelectTrack)
 
 
 local function musicChangeTrack(e)
-	tes3.messageBox("Music changed: %s -> %s    sit = %s    fade = %d", e.context, e.music, e.situation, e.crossfade)
-end		--event.register("musicChangeTrack", musicChangeTrack)
+	lastMusic = e.music
+
+	if not (COM and e.situation == 1 and not NOC[D.MusL]) then
+		-- not battle
+		lastMusicPeace = e.music
+	end
+	
+	-- tes3.messageBox("Music changed: %s -> %s    sit = %s    fade = %d", e.context, e.music, e.situation, e.crossfade)
+end		event.register("musicChangeTrack", musicChangeTrack)
 
 
 local function cellChanged(e)	local c = e.cell	local ext = c.isOrBehavesAsExterior		local cid = c.id	local low = cid:lower()		local split = string.split(cid, ",")	split = string.split(split[1], ":")[1]
