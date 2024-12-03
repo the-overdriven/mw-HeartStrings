@@ -156,6 +156,10 @@ local ST = {
 
 local lastMusic
 local lastMusicPeace
+local lastMusicPeaceProcessed
+local lastMusicPeacePosition
+local lastMusicOutputFile
+local lastMusicOutputFileCleaned
 
 
 local function combatStarted(e) if e.target == mp and not COM and not NOC[D.MusL] then		local m = e.actor	local ob = m.object		local int = p.cell.isInterior		local Start 	--local r = m.reference
@@ -165,42 +169,85 @@ local function combatStarted(e) if e.target == mp and not COM and not NOC[D.MusL
 
 	if Start then	COM = true
 		local file = RandomMP3("data files\\music\\Battle")
+
+		mwse.log('[HS] musicPosition %s', tostring(tes3.worldController.audioController.musicPosition)) -- this are seconds
+		mwse.log('[HS] currentMusicFilePath %s', tostring(tes3.worldController.audioController.currentMusicFilePath)) -- this are seconds
+
+		lastMusicPeacePosition = tes3.worldController.audioController.musicPosition
+		local startTime = lastMusicPeacePosition
+		local inputFile = lastMusicPeace
+
+		-- Get the part after the last slash or backslash
+		local extractedName = lastMusicPeace:match("([^/\\]+)$")
+		-- Get the part after the "__" if it exists
+		local cleanedName = extractedName:match("__(.*)") or extractedName
+		-- Remove the ".mp3" extension if it exists
+		local cleanedLastMusicPeace = cleanedName:gsub("%.mp3$", "")
+
+		-- local outputFile = "Data Files/music/output-" .. cleanedLastMusicPeace .. "-" .. lastMusicPeacePosition .. ".mp3"
+		-- local outputFileCleaned = "output-" .. cleanedLastMusicPeace .. "-" .. lastMusicPeacePosition .. ".mp3"
+		local outputFile = "Data Files/music/output-" .. math.floor(lastMusicPeacePosition) .. '__' .. cleanedLastMusicPeace .. ".mp3"
+		local outputFileCleaned = "output-" .. math.floor(lastMusicPeacePosition) .. '__' .. cleanedLastMusicPeace .. ".mp3"
+		lastMusicOutputFile = outputFile
+    lastMusicOutputFileCleaned = outputFileCleaned
+
+		require("luacom")
+		local luacom = _G.luacom
+
+		local ffmpeg_command = string.format('ffmpeg -y -i "%s" -ss %s -acodec copy "%s"', inputFile, startTime, outputFile)
+
+		local Shell = luacom.CreateObject("WScript.Shell")
+
+		-- Run the command invisibly (0 = Hide window)
+		Shell:Run(ffmpeg_command, 0, false)
+
+		-- socket.sleep(0.1) -- Allow the process to start and return control to the game
+		
 		tes3.streamMusic{path = ("Battle\\%s"):format(file), situation = 1, crossfade = 1}
 		if cf.msg then tes3.messageBox("Start - Battle - %s", file) end
 	end
 end end		event.register("combatStarted", combatStarted)
 
+
 -- order of execution: 1.musicSelectTrack. 2.musicChangeTrack.
-local function musicSelectTrack(e)		--tes3.messageBox("Sit = %s   D = %s    com = %s", e.situation, D.MusL, COM)	
-if COM and e.situation == 1 and not NOC[D.MusL] then
-	local file = RandomMP3("data files\\music\\Battle")
-	e.music = ("Battle\\%s"):format(file)
-	if cf.msg then tes3.messageBox("Select - Battle - %s", file) end
-else
-	timer.delayOneFrame(function()	-- Без таймера боевая музыка всегда будет прерывать мирную
-		local file
-		if lastMusicPeace and not (lastMusicPeace == lastMusic) then
-			-- resume last peaceful music if it exists but don't repeat the previous track
-    	file = lastMusicPeace
-		else
-    	file = RandomMP3(("data files\\music\\%s\\"):format(D.MusL))
-		end
+local function musicSelectTrack(e)
+	local currentMusicFilePath = tes3.worldController.audioController.currentMusicFilePath
 
-		-- reset last music if it's not a change due to battle
-		-- so that natural music change wont be looped forever
-		-- lastMusicPeace = nil -- it doesn't make a difference?
+	-- if (currentMusicFilePath ~= 'Data Files/Music/Special/morrowind title.mp3') then
+	-- 	lastMusicPeacePosition = tes3.worldController.audioController.musicPosition
+	-- end
 
-		if string.find(file, "/") or string.find(file, "\\") then
-			-- trim "Data Files/music/" from file since tes3.streamMusic prefixes that automatically
-			tes3.streamMusic{path = string.gsub(file, "^" .. string.gsub("Data Files/music/", "(%a)", function(c) return "[" .. c:lower() .. c:upper() .. "]" end), ""), situation = 2, crossfade = 1}
-		else
-			tes3.streamMusic{path = ("%s\\%s"):format(D.MusL, file), situation = 2, crossfade = 1}
-		end
+	if COM and e.situation == 1 and not NOC[D.MusL] then
+		local file = RandomMP3("data files\\music\\Battle")
+		e.music = ("Battle\\%s"):format(file)
+		if cf.msg then tes3.messageBox("Select - Battle - %s", file) end
+	else
+		timer.delayOneFrame(function()	-- Без таймера боевая музыка всегда будет прерывать мирную
+			local file
+			if lastMusicPeace and not (lastMusicPeace == lastMusic) then
+				-- resume last peaceful music if it exists but don't repeat the previous track
+	    	file = lastMusicPeace
+			else
+	    	file = RandomMP3(("data files\\music\\%s\\"):format(D.MusL))
+			end
 
-		if cf.msg then tes3.messageBox("Select - %s - %s", D.MusL, file) end
-	end, timer.real)
-	COM = false		e.music = nil	return false
-end end		event.register("musicSelectTrack", musicSelectTrack)
+			-- reset last music if it's not a change due to battle
+			-- so that natural music change wont be looped forever
+			-- lastMusicPeace = nil -- it doesn't make a difference?
+
+			if string.find(file, "/") or string.find(file, "\\") then
+				-- trim "Data Files/music/" from file since tes3.streamMusic prefixes that automatically
+				-- tes3.streamMusic{path = string.gsub(file, "^" .. string.gsub("Data Files/music/", "(%a)", function(c) return "[" .. c:lower() .. c:upper() .. "]" end), ""), situation = 2, crossfade = 1}
+				tes3.streamMusic{path = lastMusicOutputFileCleaned, situation = 2, crossfade = 1} -- resume to cut music
+				if cf.msg then tes3.messageBox("Select - %s - %s", D.MusL, lastMusicOutputFileCleaned) end
+			else
+				tes3.streamMusic{path = ("%s\\%s"):format(D.MusL, file), situation = 2, crossfade = 1}
+				if cf.msg then tes3.messageBox("Select - %s - %s", D.MusL, file) end
+			end
+
+		end, timer.real)
+		COM = false		e.music = nil	return false
+end end event.register("musicSelectTrack", musicSelectTrack)
 
 
 
