@@ -17,7 +17,6 @@ local Ptomb = re.compile[[ "tomb" / "barrow" / "crypt" / "catacomb" / "burial" ]
 local function RandomMP3(dir) local files = Cach[dir]	if not files then files = {}	for file in lfs.dir(dir) do if file:endswith("mp3") then table.insert(files, file) end end	Cach[dir] = files end	return table.choice(files) end
 
 
-
 local R = {
 ["Bitter Coast Region"] = "Explore",
 ["Azura's Coast Region"] = "Explore",
