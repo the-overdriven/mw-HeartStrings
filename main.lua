@@ -1,6 +1,6 @@
 local cf = mwse.loadConfig("HeartStrings", {extlvl = 0, extmlvl = 10, extatk = 40, intlvl = 0, intmlvl = 10, intatk = 30, stop = false, msg = false})
 
-local function registerModConfig()		local tpl = mwse.mcm.createTemplate("HeartStrings")	tpl:saveOnClose("HeartStrings", cf)	tpl:register()	local p0 = tpl:createPage()	local var = mwse.mcm.createTableVariable
+local function registerModConfig()    local tpl = mwse.mcm.createTemplate("HeartStrings")  tpl:saveOnClose("HeartStrings", cf)  tpl:register()  local p0 = tpl:createPage()  local var = mwse.mcm.createTableVariable
 p0:createSlider{label = "Level of armed enemies to start combat music in exteriors", min = 0, max = 100, step = 5, jump = 10, variable = var{id = "extlvl", table = cf}}
 p0:createSlider{label = "Level of monster enemies to start combat music in exteriors", min = 0, max = 100, step = 5, jump = 10, variable = var{id = "extmlvl", table = cf}}
 p0:createSlider{label = "Attack power of monster enemies to start combat music in exteriors", min = 0, max = 200, step = 5, jump = 10, variable = var{id = "extatk", table = cf}}
@@ -9,12 +9,12 @@ p0:createSlider{label = "Level of monster enemies to start combat music in inter
 p0:createSlider{label = "Attack power of monster enemies to start combat music in interiors", min = 0, max = 200, step = 5, jump = 10, variable = var{id = "intatk", table = cf}}
 p0:createYesNoButton{label = "Start a new track immediately when changing homogeneous locations", variable = var{id = "stop", table = cf}}
 p0:createYesNoButton{label = "Print track names", variable = var{id = "msg", table = cf}}
-end		event.register("modConfigReady", registerModConfig)
+end    event.register("modConfigReady", registerModConfig)
 
 
-local re = require("re")	local C = require("HeartStrings.music")		local p, mp, D, COM		local Cach = {}		--local CT = timer
+local re = require("re")  local C = require("HeartStrings.music")    local p, mp, D, COM    local Cach = {}    --local CT = timer
 local Ptomb = re.compile[[ "tomb" / "barrow" / "crypt" / "catacomb" / "burial" ]]
-local function RandomMP3(dir) local files = Cach[dir]	if not files then files = {}	for file in lfs.dir(dir) do if file:endswith("mp3") then table.insert(files, file) end end	Cach[dir] = files end	return table.choice(files) end
+local function RandomMP3(dir) local files = Cach[dir]  if not files then files = {}  for file in lfs.dir(dir) do if file:endswith("mp3") then table.insert(files, file) end end  Cach[dir] = files end  return table.choice(files) end
 
 
 local R = {
@@ -161,136 +161,134 @@ local lastMusicOutputFile
 local lastMusicOutputFileCleaned
 
 
-local function combatStarted(e) if e.target == mp and not COM and not NOC[D.MusL] then		local m = e.actor	local ob = m.object		local int = p.cell.isInterior		local Start 	--local r = m.reference
-	if m.actorType == 1 or ob.biped or ob.usesEquipment then					-- ob.type ~= 0
-		if ob.level >= (int and cf.intlvl or cf.extlvl) then Start = true end
-	elseif (ob.level >= (int and cf.intmlvl or cf.extmlvl)) or (ob.attacks[1].max >= (int and cf.intatk or cf.extatk)) then Start = true end
+local function combatStarted(e) if e.target == mp and not COM and not NOC[D.MusL] then    local m = e.actor  local ob = m.object    local int = p.cell.isInterior    local Start   --local r = m.reference
+  if m.actorType == 1 or ob.biped or ob.usesEquipment then          -- ob.type ~= 0
+    if ob.level >= (int and cf.intlvl or cf.extlvl) then Start = true end
+  elseif (ob.level >= (int and cf.intmlvl or cf.extmlvl)) or (ob.attacks[1].max >= (int and cf.intatk or cf.extatk)) then Start = true end
 
-	if Start then	COM = true
-		local file = RandomMP3("data files\\music\\Battle")
+  if Start then  COM = true
+    local file = RandomMP3("data files\\music\\Battle")
 
-		mwse.log('[HS] musicPosition %s', tostring(tes3.worldController.audioController.musicPosition)) -- this are seconds
-		mwse.log('[HS] currentMusicFilePath %s', tostring(tes3.worldController.audioController.currentMusicFilePath)) -- this are seconds
+    mwse.log('[HS] musicPosition %s', tostring(tes3.worldController.audioController.musicPosition)) -- this are seconds
+    mwse.log('[HS] currentMusicFilePath %s', tostring(tes3.worldController.audioController.currentMusicFilePath)) -- this are seconds
 
-		lastMusicPeacePosition = tes3.worldController.audioController.musicPosition
-		local startTime = lastMusicPeacePosition
-		local inputFile = lastMusicPeace
+    lastMusicPeacePosition = tes3.worldController.audioController.musicPosition
+    local startTime = lastMusicPeacePosition
+    local inputFile = lastMusicPeace
 
-		-- Get the part after the last slash or backslash
-		local extractedName = lastMusicPeace:match("([^/\\]+)$")
-		-- Get the part after the "__" if it exists
-		local cleanedName = extractedName:match("__(.*)") or extractedName
-		-- Remove the ".mp3" extension if it exists
-		local cleanedLastMusicPeace = cleanedName:gsub("%.mp3$", "")
+    -- Get the part after the last slash or backslash
+    local extractedName = lastMusicPeace:match("([^/\\]+)$")
+    -- Get the part after the "__" if it exists
+    local cleanedName = extractedName:match("__(.*)") or extractedName
+    -- Remove the ".mp3" extension if it exists
+    local cleanedLastMusicPeace = cleanedName:gsub("%.mp3$", "")
 
-		-- local outputFile = "Data Files/music/output-" .. cleanedLastMusicPeace .. "-" .. lastMusicPeacePosition .. ".mp3"
-		-- local outputFileCleaned = "output-" .. cleanedLastMusicPeace .. "-" .. lastMusicPeacePosition .. ".mp3"
-		local outputFile = "Data Files/music/output-" .. math.floor(lastMusicPeacePosition) .. '__' .. cleanedLastMusicPeace .. ".mp3"
-		local outputFileCleaned = "output-" .. math.floor(lastMusicPeacePosition) .. '__' .. cleanedLastMusicPeace .. ".mp3"
-		lastMusicOutputFile = outputFile
+
+    local lastMusicPeacePositionFormatted = Math.floor(lastMusicPeacePosition * 100) / 100
+    local outputFile = "Data Files/music/output-" .. lastMusicPeacePositionFormatted .. '__' .. cleanedLastMusicPeace .. ".mp3"
+    local outputFileCleaned = "output-" .. lastMusicPeacePositionFormatted .. '__' .. cleanedLastMusicPeace .. ".mp3"
+    lastMusicOutputFile = outputFile
     lastMusicOutputFileCleaned = outputFileCleaned
 
-		require("luacom")
-		local luacom = _G.luacom
+    require("luacom")
+    local luacom = _G.luacom
 
-		local ffmpeg_command = string.format('ffmpeg -y -i "%s" -ss %s -acodec copy "%s"', inputFile, startTime, outputFile)
+    local ffmpeg_command = string.format('ffmpeg -y -i "%s" -ss %s -acodec copy "%s"', inputFile, startTime, outputFile)
 
-		local Shell = luacom.CreateObject("WScript.Shell")
+    local Shell = luacom.CreateObject("WScript.Shell")
 
-		-- Run the command invisibly (0 = Hide window)
-		Shell:Run(ffmpeg_command, 0, false)
-
-		-- socket.sleep(0.1) -- Allow the process to start and return control to the game
-		
-		tes3.streamMusic{path = ("Battle\\%s"):format(file), situation = 1, crossfade = 1}
-		if cf.msg then tes3.messageBox("Start - Battle - %s", file) end
-	end
-end end		event.register("combatStarted", combatStarted)
+    -- Run the command invisibly (0 = Hide window)
+    Shell:Run(ffmpeg_command, 0, false)
+    
+    tes3.streamMusic{path = ("Battle\\%s"):format(file), situation = 1, crossfade = 1}
+    if cf.msg then tes3.messageBox("Start - Battle - %s", file) end
+  end
+end end    event.register("combatStarted", combatStarted)
 
 
 -- order of execution: 1.musicSelectTrack. 2.musicChangeTrack.
 local function musicSelectTrack(e)
-	local currentMusicFilePath = tes3.worldController.audioController.currentMusicFilePath
+  local currentMusicFilePath = tes3.worldController.audioController.currentMusicFilePath
 
-	-- if (currentMusicFilePath ~= 'Data Files/Music/Special/morrowind title.mp3') then
-	-- 	lastMusicPeacePosition = tes3.worldController.audioController.musicPosition
-	-- end
+  -- if (currentMusicFilePath ~= 'Data Files/Music/Special/morrowind title.mp3') then
+  --   lastMusicPeacePosition = tes3.worldController.audioController.musicPosition
+  -- end
 
-	if COM and e.situation == 1 and not NOC[D.MusL] then
-		local file = RandomMP3("data files\\music\\Battle")
-		e.music = ("Battle\\%s"):format(file)
-		if cf.msg then tes3.messageBox("Select - Battle - %s", file) end
-	else
-		timer.delayOneFrame(function()	-- Без таймера боевая музыка всегда будет прерывать мирную
-			local file
-			if lastMusicPeace and not (lastMusicPeace == lastMusic) then
-				-- resume last peaceful music if it exists but don't repeat the previous track
-	    	file = lastMusicPeace
-			else
-	    	file = RandomMP3(("data files\\music\\%s\\"):format(D.MusL))
-			end
+  if COM and e.situation == 1 and not NOC[D.MusL] then
+    local file = RandomMP3("data files\\music\\Battle")
+    e.music = ("Battle\\%s"):format(file)
+    if cf.msg then tes3.messageBox("Select - Battle - %s", file) end
+  else
+    timer.delayOneFrame(function()
+      local file
+      if lastMusicPeace and not (lastMusicPeace == lastMusic) then
+        -- resume last peaceful music if it exists but don't repeat the previous track
+        file = lastMusicPeace
+      else
+        file = RandomMP3(("data files\\music\\%s\\"):format(D.MusL))
+      end
 
-			-- reset last music if it's not a change due to battle
-			-- so that natural music change wont be looped forever
-			-- lastMusicPeace = nil -- it doesn't make a difference?
+      -- reset last music if it's not a change due to battle
+      -- so that natural music change wont be looped forever
+      -- lastMusicPeace = nil -- it doesn't make a difference?
 
-			if string.find(file, "/") or string.find(file, "\\") then
-				-- trim "Data Files/music/" from file since tes3.streamMusic prefixes that automatically
-				-- tes3.streamMusic{path = string.gsub(file, "^" .. string.gsub("Data Files/music/", "(%a)", function(c) return "[" .. c:lower() .. c:upper() .. "]" end), ""), situation = 2, crossfade = 1}
-				tes3.streamMusic{path = lastMusicOutputFileCleaned, situation = 2, crossfade = 1} -- resume to cut music
-				if cf.msg then tes3.messageBox("Select - %s - %s", D.MusL, lastMusicOutputFileCleaned) end
-			else
-				tes3.streamMusic{path = ("%s\\%s"):format(D.MusL, file), situation = 2, crossfade = 1}
-				if cf.msg then tes3.messageBox("Select - %s - %s", D.MusL, file) end
-			end
+      if string.find(file, "/") or string.find(file, "\\") then
+        -- trim "Data Files/music/" from file since tes3.streamMusic prefixes that automatically
+        -- tes3.streamMusic{path = string.gsub(file, "^" .. string.gsub("Data Files/music/", "(%a)", function(c) return "[" .. c:lower() .. c:upper() .. "]" end), ""), situation = 2, crossfade = 1}
+        tes3.streamMusic{path = lastMusicOutputFileCleaned, situation = 2, crossfade = 1} -- resume to cut music
+        if cf.msg then tes3.messageBox("Select - %s - %s", D.MusL, lastMusicOutputFileCleaned) end
+      else
+        tes3.streamMusic{path = ("%s\\%s"):format(D.MusL, file), situation = 2, crossfade = 1}
+        if cf.msg then tes3.messageBox("Select - %s - %s", D.MusL, file) end
+      end
 
-		end, timer.real)
-		COM = false		e.music = nil	return false
+    end, timer.real)
+    COM = false    e.music = nil  return false
 end end event.register("musicSelectTrack", musicSelectTrack)
 
 
 
 local function musicChangeTrack(e)
-	lastMusic = e.music
+  lastMusic = e.music
 
-	if not (COM and e.situation == 1 and not NOC[D.MusL]) then
-		-- not battle
-		lastMusicPeace = e.music
-	end
-	
-	-- tes3.messageBox("Music changed: %s -> %s    sit = %s    fade = %d", e.context, e.music, e.situation, e.crossfade)
-end		event.register("musicChangeTrack", musicChangeTrack)
-
-
-local function cellChanged(e)	local c = e.cell	local ext = c.isOrBehavesAsExterior		local cid = c.id	local low = cid:lower()		local split = string.split(cid, ",")	split = string.split(split[1], ":")[1]
-	local Prev = D.MusL			local Mus = C[cid] or C[split]
-	
-	if ext then	local reg = tes3.getRegion()	reg = reg and reg.id
-		if not Mus or DUN[Mus] then Mus = R[reg] end
-	else
-		if not Mus then
-			if re.find(low, Ptomb) then Mus = "Tomb"		--if string.find(low, "sewers") then Mus = "Sewers" end
-			else
-				local stid
-				for sta in c:iterateReferences(tes3.objectType.static) do stid = sta.id
-					for pat, _ in pairs(ST) do if string.startswith(stid, pat) then Mus = "Dunge" break end end
-					if Mus then break end
-				end
-			end
-		end
-	end
-	if not Mus then Mus = "Explore" end
-
-	if D.MusL ~= Mus then D.MusL = Mus
-		if not COM and (cf.stop or not (NOSTOP[Prev] and NOSTOP[Mus])) then
-			local file = RandomMP3(("data files\\music\\%s\\"):format(Mus))
-			tes3.streamMusic{path = ("%s\\%s"):format(Mus, file), situation = 2, crossfade = 1}
-			if cf.msg then tes3.messageBox("Cell - %s - %s", Mus, file) end
-		end
-	end
-	--	tes3.messageBox("%s    %s  reg = %s   Mus = %s", cid, split, reg, Mus)
-end		event.register("cellChanged", cellChanged)
+  if not (COM and e.situation == 1 and not NOC[D.MusL]) then
+    -- not battle
+    lastMusicPeace = e.music
+  end
+  
+  -- tes3.messageBox("Music changed: %s -> %s    sit = %s    fade = %d", e.context, e.music, e.situation, e.crossfade)
+end    event.register("musicChangeTrack", musicChangeTrack)
 
 
-local function loaded(e) p = tes3.player	 mp = tes3.mobilePlayer		D = p.data		D.MusL = D.MusL or "Explore"		COM = nil
-end		event.register("loaded", loaded)
+local function cellChanged(e)  local c = e.cell  local ext = c.isOrBehavesAsExterior    local cid = c.id  local low = cid:lower()    local split = string.split(cid, ",")  split = string.split(split[1], ":")[1]
+  local Prev = D.MusL      local Mus = C[cid] or C[split]
+  
+  if ext then  local reg = tes3.getRegion()  reg = reg and reg.id
+    if not Mus or DUN[Mus] then Mus = R[reg] end
+  else
+    if not Mus then
+      if re.find(low, Ptomb) then Mus = "Tomb"    --if string.find(low, "sewers") then Mus = "Sewers" end
+      else
+        local stid
+        for sta in c:iterateReferences(tes3.objectType.static) do stid = sta.id
+          for pat, _ in pairs(ST) do if string.startswith(stid, pat) then Mus = "Dunge" break end end
+          if Mus then break end
+        end
+      end
+    end
+  end
+  if not Mus then Mus = "Explore" end
+
+  if D.MusL ~= Mus then D.MusL = Mus
+    if not COM and (cf.stop or not (NOSTOP[Prev] and NOSTOP[Mus])) then
+      local file = RandomMP3(("data files\\music\\%s\\"):format(Mus))
+      tes3.streamMusic{path = ("%s\\%s"):format(Mus, file), situation = 2, crossfade = 1}
+      if cf.msg then tes3.messageBox("Cell - %s - %s", Mus, file) end
+    end
+  end
+  --  tes3.messageBox("%s    %s  reg = %s   Mus = %s", cid, split, reg, Mus)
+end    event.register("cellChanged", cellChanged)
+
+
+local function loaded(e) p = tes3.player   mp = tes3.mobilePlayer    D = p.data    D.MusL = D.MusL or "Explore"    COM = nil
+end    event.register("loaded", loaded)
