@@ -3,7 +3,8 @@ local luacom = _G.luacom
 
 local cf = mwse.loadConfig("HeartStrings", {extlvl = 0, extmlvl = 10, extatk = 40, intlvl = 0, intmlvl = 10, intatk = 30, stop = false, msg = false})
 
-local function registerModConfig()    local tpl = mwse.mcm.createTemplate("HeartStrings")  tpl:saveOnClose("HeartStrings", cf)  tpl:register()  local p0 = tpl:createPage()  local var = mwse.mcm.createTableVariable
+local function registerModConfig() local tpl = mwse.mcm.createTemplate("HeartStrings")  tpl:saveOnClose("HeartStrings", cf)  tpl:register()  local p0 = tpl:createPage()  local var = mwse.mcm.createTableVariable
+  
 p0:createSlider{label = "Level of armed enemies to start combat music in exteriors", min = 0, max = 100, step = 5, jump = 10, variable = var{id = "extlvl", table = cf}}
 p0:createSlider{label = "Level of monster enemies to start combat music in exteriors", min = 0, max = 100, step = 5, jump = 10, variable = var{id = "extmlvl", table = cf}}
 p0:createSlider{label = "Attack power of monster enemies to start combat music in exteriors", min = 0, max = 200, step = 5, jump = 10, variable = var{id = "extatk", table = cf}}
@@ -18,6 +19,7 @@ end    event.register("modConfigReady", registerModConfig)
 local re = require("re")  local C = require("HeartStrings.music")    local p, mp, D, COM    local Cach = {}    --local CT = timer
 local Ptomb = re.compile[[ "tomb" / "barrow" / "crypt" / "catacomb" / "burial" ]]
 local function RandomMP3(dir) local files = Cach[dir]  if not files then files = {}  for file in lfs.dir(dir) do if file:endswith("mp3") then table.insert(files, file) end end  Cach[dir] = files end  return table.choice(files) end
+
 
 
 local R = {
@@ -177,6 +179,8 @@ local function removeFile(filePath)
   else
     mwse.log('[HS] Attempted to delete a file that does not exist: %s', absPath)
   end
+
+  fso = nil
 end
 
 -- extracts base file name, i.e. "Dark Souls" from "Data Files/music/output-35.44___Dark Souls.mp3"
@@ -189,7 +193,7 @@ local function getFileNameWithoutPathOrExtension(filePath)
 end
 
 -- generates a new file in "Data Files/Music/..." from previous track starting from the point where it was interrupted
-local function cutPreviousPeaceTrack()
+local function cutPreviousPeaceTrack(callback)
   lastTrackPeacePosition = tes3.worldController.audioController.musicPosition
   local startTime = lastTrackPeacePosition
   local inputFile = lastTrackPeace
@@ -203,9 +207,14 @@ local function cutPreviousPeaceTrack()
   lastTrackOutputFileCleaned = outputFileCleaned
   --i.e. "output-54.69___The Elder Srolls III Morrowind Soundtrack - 08. Blessing of Vivec.mp3"
 
+  if callback then
+    callback()
+  end
+
   local ffmpegCommand = string.format('ffmpeg -y -i "%s" -ss %s -acodec copy "%s"', inputFile, startTime, outputFile)
   local Shell = luacom.CreateObject("WScript.Shell")
   Shell:Run(ffmpegCommand, 0, wasInputFileCut and true or false)
+  Shell = nil
 
   if wasInputFileCut then
     -- if the input file is an old output file remove it after it's processed
@@ -221,10 +230,13 @@ local function combatStarted(e) if e.target == mp and not COM and not NOC[D.MusL
 
   if Start then  COM = true
     local file = RandomMP3("data files\\music\\Battle")
-    tes3.streamMusic{path = ("Battle\\%s"):format(file), situation = 1, crossfade = 1}
-    if cf.msg then tes3.messageBox("Start - Battle - %s", file) end
 
-    cutPreviousPeaceTrack()
+    cutPreviousPeaceTrack(function()
+        tes3.streamMusic{path = ("Battle\\%s"):format(file), situation = 1, crossfade = 1}
+        if cf.msg then tes3.messageBox("Start - Battle - %s", file) end
+      end)
+
+    -- cutPreviousPeaceTrack()
   end
 end end    event.register("combatStarted", combatStarted)
 
