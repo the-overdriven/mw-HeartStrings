@@ -159,7 +159,6 @@ local ST = {
 local lastTrack
 local lastTrackPeace
 local lastTrackPeacePosition
-local lastTrackOutputFile
 local lastTrackOutputFileCleaned
 
 
@@ -201,7 +200,6 @@ local function cutPreviousPeaceTrack()
 
   local outputFile = "Data Files/music/output-" .. lastTrackPeacePositionFormatted .. '___' .. cleanedLastTrackPeace .. ".mp3"
   local outputFileCleaned = "output-" .. lastTrackPeacePositionFormatted .. '___' .. cleanedLastTrackPeace .. ".mp3"
-  lastTrackOutputFile = outputFile
   lastTrackOutputFileCleaned = outputFileCleaned
   --i.e. "output-54.69___The Elder Srolls III Morrowind Soundtrack - 08. Blessing of Vivec.mp3"
 
@@ -250,6 +248,7 @@ local function musicSelectTrack(e)
 
       if string.find(file, "/") or string.find(file, "\\") then
         -- resume to cut music
+        -- last peaceful track is stored as a whole path so don't format it
         tes3.streamMusic{path = lastTrackOutputFileCleaned, situation = 2, crossfade = 1}
         file = lastTrackOutputFileCleaned -- log file properly
       else
