@@ -1,3 +1,5 @@
+require("luacom")
+
 local cf = mwse.loadConfig("HeartStrings", {extlvl = 0, extmlvl = 10, extatk = 40, intlvl = 0, intmlvl = 10, intatk = 30, stop = false, msg = false})
 
 local function registerModConfig()    local tpl = mwse.mcm.createTemplate("HeartStrings")  tpl:saveOnClose("HeartStrings", cf)  tpl:register()  local p0 = tpl:createPage()  local var = mwse.mcm.createTableVariable
@@ -155,7 +157,6 @@ local ST = {
 
 local lastMusic
 local lastMusicPeace
-local lastMusicPeaceProcessed
 local lastMusicPeacePosition
 local lastMusicOutputFile
 local lastMusicOutputFileCleaned
@@ -169,39 +170,85 @@ local function combatStarted(e) if e.target == mp and not COM and not NOC[D.MusL
   if Start then  COM = true
     local file = RandomMP3("data files\\music\\Battle")
 
-    mwse.log('[HS] musicPosition %s', tostring(tes3.worldController.audioController.musicPosition)) -- this are seconds
-    mwse.log('[HS] currentMusicFilePath %s', tostring(tes3.worldController.audioController.currentMusicFilePath)) -- this are seconds
-
     lastMusicPeacePosition = tes3.worldController.audioController.musicPosition
     local startTime = lastMusicPeacePosition
     local inputFile = lastMusicPeace
 
     -- Get the part after the last slash or backslash
     local extractedName = lastMusicPeace:match("([^/\\]+)$")
-    -- Get the part after the "__" if it exists
-    local cleanedName = extractedName:match("__(.*)") or extractedName
+    -- Get the part after the "___" if it exists
+    local cleanedName = extractedName:match("___(.*)") or extractedName
     -- Remove the ".mp3" extension if it exists
     local cleanedLastMusicPeace = cleanedName:gsub("%.mp3$", "")
 
-
-    local lastMusicPeacePositionFormatted = Math.floor(lastMusicPeacePosition * 100) / 100
-    local outputFile = "Data Files/music/output-" .. lastMusicPeacePositionFormatted .. '__' .. cleanedLastMusicPeace .. ".mp3"
-    local outputFileCleaned = "output-" .. lastMusicPeacePositionFormatted .. '__' .. cleanedLastMusicPeace .. ".mp3"
+    local lastMusicPeacePositionFormatted = math.floor(lastMusicPeacePosition * 100) / 100
+    local outputFile = "Data Files/music/output-" .. lastMusicPeacePositionFormatted .. '___' .. cleanedLastMusicPeace .. ".mp3"
+    local outputFileCleaned = "output-" .. lastMusicPeacePositionFormatted .. '___' .. cleanedLastMusicPeace .. ".mp3"
     lastMusicOutputFile = outputFile
     lastMusicOutputFileCleaned = outputFileCleaned
-
-    require("luacom")
+    
     local luacom = _G.luacom
 
-    local ffmpeg_command = string.format('ffmpeg -y -i "%s" -ss %s -acodec copy "%s"', inputFile, startTime, outputFile)
+    local ffmpegCommand = string.format('ffmpeg -y -i "%s" -ss %s -acodec copy "%s"', inputFile, startTime, outputFile)
+    
+
+		-- else
+    -- 	ffmpegCommand = string.format('ffmpeg -y -i "%s" -ss %s -acodec copy "%s"', inputFile, startTime, outputFile)
+		-- end
+
+    mwse.log('[stringz] inputFile %s, startTime %s, outputFile %s, inputFile %s, inputFilematch %s, ffmpegCommand %s', inputFile, startTime, outputFile, inputFile:gsub("/", "\\"), inputFile:match("^Data Files/music/output%-"), ffmpegCommand)
+
 
     local Shell = luacom.CreateObject("WScript.Shell")
 
+    -- if inputFile:match("^Data Files/music/output%-") then
+    --   -- mwse.log('[stringz] attempting file delete')
+    --    -- ffmpegCommand = string.format('cmd.exe /C del /F /Q "c:\\test.mp3"')
+    --   -- os.remove(inputFile:gsub("/", "\\"))
+
+
+		-- 					local fso = luacom.CreateObject("Scripting.FileSystemObject")
+		-- 					local file = "Data Files/music/output-7.67___exploration4.mp3"
+
+		-- 					-- Get the absolute path
+		-- 					local absPath = fso:GetAbsolutePathName(file)
+
+		-- 					if fso:FileExists(absPath) then
+		-- 					    -- fso:DeleteFile(absPath)
+		-- 					    Shell:Run(string.format('del %s', absPath), 0, false)
+		-- 					    mwse.log('File deleted successfully.')
+		-- 					else
+		-- 					    mwse.log('File does not exist.')
+		-- 					end
+    -- end
+
+
     -- Run the command invisibly (0 = Hide window)
-    Shell:Run(ffmpeg_command, 0, false)
+    -- Shell:Run(ffmpegCommand, 0, false)
+
+
     
     tes3.streamMusic{path = ("Battle\\%s"):format(file), situation = 1, crossfade = 1}
     if cf.msg then tes3.messageBox("Start - Battle - %s", file) end
+
+    Shell:Run(ffmpegCommand, 0, true)
+
+    -- TODO: remove also old when music changes?
+
+     if inputFile:match("^Data Files/music/output%-") then
+              local fso = luacom.CreateObject("Scripting.FileSystemObject")
+              local fileToDelete = inputFile
+
+              -- Get the absolute path
+              local absPath = fso:GetAbsolutePathName(fileToDelete)
+
+              if fso:FileExists(absPath) then
+                  fso:DeleteFile(absPath)
+                  mwse.log('File deleted successfully.')
+              else
+                  mwse.log('File does not exist.')
+              end
+    end
   end
 end end    event.register("combatStarted", combatStarted)
 
@@ -209,10 +256,6 @@ end end    event.register("combatStarted", combatStarted)
 -- order of execution: 1.musicSelectTrack. 2.musicChangeTrack.
 local function musicSelectTrack(e)
   local currentMusicFilePath = tes3.worldController.audioController.currentMusicFilePath
-
-  -- if (currentMusicFilePath ~= 'Data Files/Music/Special/morrowind title.mp3') then
-  --   lastMusicPeacePosition = tes3.worldController.audioController.musicPosition
-  -- end
 
   if COM and e.situation == 1 and not NOC[D.MusL] then
     local file = RandomMP3("data files\\music\\Battle")
@@ -228,13 +271,7 @@ local function musicSelectTrack(e)
         file = RandomMP3(("data files\\music\\%s\\"):format(D.MusL))
       end
 
-      -- reset last music if it's not a change due to battle
-      -- so that natural music change wont be looped forever
-      -- lastMusicPeace = nil -- it doesn't make a difference?
-
       if string.find(file, "/") or string.find(file, "\\") then
-        -- trim "Data Files/music/" from file since tes3.streamMusic prefixes that automatically
-        -- tes3.streamMusic{path = string.gsub(file, "^" .. string.gsub("Data Files/music/", "(%a)", function(c) return "[" .. c:lower() .. c:upper() .. "]" end), ""), situation = 2, crossfade = 1}
         tes3.streamMusic{path = lastMusicOutputFileCleaned, situation = 2, crossfade = 1} -- resume to cut music
         if cf.msg then tes3.messageBox("Select - %s - %s", D.MusL, lastMusicOutputFileCleaned) end
       else
