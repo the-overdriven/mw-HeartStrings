@@ -163,16 +163,41 @@ local lastTrackOutputFile
 local lastTrackOutputFileCleaned
 
 
+-- checks if a file is a temporary generated file (to be deleted)
+local function wasFileCut(filePath)
+  return filePath:match("^Data Files/music/output%-")
+end
+
+local function removeFile(filePath)
+  local fso = luacom.CreateObject("Scripting.FileSystemObject")
+  local fileToDelete = filePath
+  local absPath = fso:GetAbsolutePathName(fileToDelete)
+
+  if fso:FileExists(absPath) then
+    fso:DeleteFile(absPath)
+  else
+    mwse.log('[HS] Attempted to delete a file does not exist: %s', absPath)
+  end
+end
+
+-- extracts i.e. "Dark Souls" from "Data Files/music/output-35.44___Dark Souls.mp3"
+local function getFileNameWithoutPathOrExtension(filePath)
+  local extractedName = lastTrackPeace:match("([^/\\]+)$") -- Get the part after the last slash or backslash (filename only)
+  local cleanedName = extractedName:match("___(.*)") or extractedName -- Get the part after the "___" if it exists
+  local cleanedLastTrackPeace = cleanedName:gsub("%.mp3$", "")
+
+  return cleanedLastTrackPeace
+end
+
+-- generates a new file in "Data Files/Music" from previous track starting from the point where it was interrupted
 local function cutPreviousPeaceTrack()
   lastTrackPeacePosition = tes3.worldController.audioController.musicPosition
   local startTime = lastTrackPeacePosition
   local inputFile = lastTrackPeace
-  local wasInputFileCut = inputFile:match("^Data Files/music/output%-")
+  local wasInputFileCut = wasFileCut(inputFile)
 
   local lastTrackPeacePositionFormatted = math.floor(lastTrackPeacePosition * 100) / 100
-  local extractedName = lastTrackPeace:match("([^/\\]+)$") -- Get the part after the last slash or backslash (filename only)
-  local cleanedName = extractedName:match("___(.*)") or extractedName -- Get the part after the "___" if it exists
-  local cleanedLastTrackPeace = cleanedName:gsub("%.mp3$", "")
+  local cleanedLastTrackPeace = getFileNameWithoutPathOrExtension(lastTrackPeace)
 
   local outputFile = "Data Files/music/output-" .. lastTrackPeacePositionFormatted .. '___' .. cleanedLastTrackPeace .. ".mp3"
   local outputFileCleaned = "output-" .. lastTrackPeacePositionFormatted .. '___' .. cleanedLastTrackPeace .. ".mp3"
@@ -185,19 +210,9 @@ local function cutPreviousPeaceTrack()
   local Shell = luacom.CreateObject("WScript.Shell")
   Shell:Run(ffmpegCommand, 0, wasInputFileCut and true or false)
 
-  -- TODO: remove also old when music changes?
-
   if wasInputFileCut then
-  -- remove old output file after it's processed
-    local fso = luacom.CreateObject("Scripting.FileSystemObject")
-    local fileToDelete = inputFile
-    local absPath = fso:GetAbsolutePathName(fileToDelete)
-
-    if fso:FileExists(absPath) then
-      fso:DeleteFile(absPath)
-    else
-      mwse.log('[HS] Attempted to delete a file does not exist: %s', absPath)
-    end
+    -- remove old output file after it's processed
+    removeFile(inputFile)
   end
 end
 
@@ -219,13 +234,12 @@ end end    event.register("combatStarted", combatStarted)
 
 -- order of execution: 1.musicSelectTrack. 2.musicChangeTrack.
 local function musicSelectTrack(e)
-  local currentMusicFilePath = tes3.worldController.audioController.currentMusicFilePath
-
   if COM and e.situation == 1 and not NOC[D.MusL] then
     local file = RandomMP3("data files\\music\\Battle")
     e.music = ("Battle\\%s"):format(file)
     if cf.msg then tes3.messageBox("Select - Battle - %s", file) end
   else
+    -- NOT BATTLE
     timer.delayOneFrame(function()
       local file
       if lastTrackPeace and not (lastTrackPeace == lastTrack) then
@@ -243,17 +257,23 @@ local function musicSelectTrack(e)
         if cf.msg then tes3.messageBox("Select - %s - %s", D.MusL, file) end
       end
 
+      -- remove previous peaceful track if it was an output file
+      local currentMusicFilePath = tes3.worldController.audioController.currentMusicFilePath
+      local wasCurrentMusicFilePathCut = wasFileCut(currentMusicFilePath)
+      if wasCurrentMusicFilePathCut then
+        removeFile(currentMusicFilePath)
+      end
+
     end, timer.real)
     COM = false    e.music = nil  return false
 end end event.register("musicSelectTrack", musicSelectTrack)
-
 
 
 local function musicChangeTrack(e)
   lastTrack = e.music
 
   if not (COM and e.situation == 1 and not NOC[D.MusL]) then
-    -- not battle
+    -- NOT BATTLE
     lastTrackPeace = e.music
   end
   
