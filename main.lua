@@ -176,11 +176,11 @@ local function removeFile(filePath)
   if fso:FileExists(absPath) then
     fso:DeleteFile(absPath)
   else
-    mwse.log('[HS] Attempted to delete a file does not exist: %s', absPath)
+    mwse.log('[HS] Attempted to delete a file that does not exist: %s', absPath)
   end
 end
 
--- extracts i.e. "Dark Souls" from "Data Files/music/output-35.44___Dark Souls.mp3"
+-- extracts base file name, i.e. "Dark Souls" from "Data Files/music/output-35.44___Dark Souls.mp3"
 local function getFileNameWithoutPathOrExtension(filePath)
   local extractedName = lastTrackPeace:match("([^/\\]+)$") -- Get the part after the last slash or backslash (filename only)
   local cleanedName = extractedName:match("___(.*)") or extractedName -- Get the part after the "___" if it exists
@@ -189,7 +189,7 @@ local function getFileNameWithoutPathOrExtension(filePath)
   return cleanedLastTrackPeace
 end
 
--- generates a new file in "Data Files/Music" from previous track starting from the point where it was interrupted
+-- generates a new file in "Data Files/Music/..." from previous track starting from the point where it was interrupted
 local function cutPreviousPeaceTrack()
   lastTrackPeacePosition = tes3.worldController.audioController.musicPosition
   local startTime = lastTrackPeacePosition
@@ -206,12 +206,11 @@ local function cutPreviousPeaceTrack()
   --i.e. "output-54.69___The Elder Srolls III Morrowind Soundtrack - 08. Blessing of Vivec.mp3"
 
   local ffmpegCommand = string.format('ffmpeg -y -i "%s" -ss %s -acodec copy "%s"', inputFile, startTime, outputFile)
-
   local Shell = luacom.CreateObject("WScript.Shell")
   Shell:Run(ffmpegCommand, 0, wasInputFileCut and true or false)
 
   if wasInputFileCut then
-    -- remove old output file after it's processed
+    -- if the input file is an old output file remove it after it's processed
     removeFile(inputFile)
   end
 end
@@ -250,13 +249,17 @@ local function musicSelectTrack(e)
       end
 
       if string.find(file, "/") or string.find(file, "\\") then
-        tes3.streamMusic{path = lastTrackOutputFileCleaned, situation = 2, crossfade = 1} -- resume to cut music
-        if cf.msg then tes3.messageBox("Select - %s - %s", D.MusL, lastTrackOutputFileCleaned) end
+        -- resume to cut music
+        tes3.streamMusic{path = lastTrackOutputFileCleaned, situation = 2, crossfade = 1}
+        file = lastTrackOutputFileCleaned -- log file properly
       else
+        -- default behavior
         tes3.streamMusic{path = ("%s\\%s"):format(D.MusL, file), situation = 2, crossfade = 1}
-        if cf.msg then tes3.messageBox("Select - %s - %s", D.MusL, file) end
       end
 
+      if cf.msg then tes3.messageBox("Select - %s - %s", D.MusL, file) end
+
+      -- peaceful track has changed = we don't need output file,
       -- remove previous peaceful track if it was an output file
       local currentMusicFilePath = tes3.worldController.audioController.currentMusicFilePath
       local wasCurrentMusicFilePathCut = wasFileCut(currentMusicFilePath)
