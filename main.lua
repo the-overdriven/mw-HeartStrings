@@ -223,7 +223,12 @@ local function cutPreviousPeaceTrack(callback)
 end
 
 
-local function combatStarted(e) if e.target == mp and not COM and not NOC[D.MusL] then    local m = e.actor  local ob = m.object    local int = p.cell.isInterior    local Start   --local r = m.reference
+local function combatStarted(e) 
+  if tes3.worldController.audioController.volumeMusic == 0 then
+    return
+  end
+
+  if e.target == mp and not COM and not NOC[D.MusL] then    local m = e.actor  local ob = m.object    local int = p.cell.isInterior    local Start   --local r = m.reference
   if m.actorType == 1 or ob.biped or ob.usesEquipment then          -- ob.type ~= 0
     if ob.level >= (int and cf.intlvl or cf.extlvl) then Start = true end
   elseif (ob.level >= (int and cf.intmlvl or cf.extmlvl)) or (ob.attacks[1].max >= (int and cf.intatk or cf.extatk)) then Start = true end
@@ -243,6 +248,10 @@ end end    event.register("combatStarted", combatStarted)
 
 -- order of execution: 1.musicSelectTrack. 2.musicChangeTrack.
 local function musicSelectTrack(e)
+  if tes3.worldController.audioController.volumeMusic == 0 then
+    return
+  end
+
   if COM and e.situation == 1 and not NOC[D.MusL] then
     local file = RandomMP3("data files\\music\\Battle")
     e.music = ("Battle\\%s"):format(file)
@@ -261,6 +270,19 @@ local function musicSelectTrack(e)
       if string.find(file, "/") or string.find(file, "\\") then
         -- resume to cut music
         -- last peaceful track is stored as a whole path so don't format it
+
+        -- add fade-in effect by gradually increasing volume
+        local volumeMusicSet = tes3.worldController.audioController.volumeMusic
+        tes3.worldController.audioController.volumeMusic = 0.01
+        timer.start{
+          type = timer.real,
+          duration = 1,
+          iterations = 4,
+          callback = function()
+            tes3.worldController.audioController.volumeMusic = tes3.worldController.audioController.volumeMusic + (volumeMusicSet / 4)
+          end
+        }
+
         tes3.streamMusic{path = lastTrackOutputFileCleaned, situation = 2, crossfade = 1}
         file = lastTrackOutputFileCleaned -- log file properly
       else
@@ -284,6 +306,10 @@ end end event.register("musicSelectTrack", musicSelectTrack)
 
 
 local function musicChangeTrack(e)
+  if tes3.worldController.audioController.volumeMusic == 0 then
+    return
+  end
+
   lastTrack = e.music
 
   if not (COM and e.situation == 1 and not NOC[D.MusL]) then
@@ -295,7 +321,12 @@ local function musicChangeTrack(e)
 end    event.register("musicChangeTrack", musicChangeTrack)
 
 
-local function cellChanged(e)  local c = e.cell  local ext = c.isOrBehavesAsExterior    local cid = c.id  local low = cid:lower()    local split = string.split(cid, ",")  split = string.split(split[1], ":")[1]
+local function cellChanged(e)  
+  if tes3.worldController.audioController.volumeMusic == 0 then
+    return
+  end
+
+  local c = e.cell  local ext = c.isOrBehavesAsExterior    local cid = c.id  local low = cid:lower()    local split = string.split(cid, ",")  split = string.split(split[1], ":")[1]
   local Prev = D.MusL      local Mus = C[cid] or C[split]
   
   if ext then  local reg = tes3.getRegion()  reg = reg and reg.id
